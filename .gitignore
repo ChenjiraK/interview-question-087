@@ -1,0 +1,23 @@
+# Local environment files (keep shareable examples)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Dependencies and frontend build output
+node_modules/
+/front-vue/dist/
+/front-vue/.vite/
+
+# Backend binaries and test output
+/back-go/bin/
+*.test
+coverage/
+coverage.out
+
+# Logs and local machine files
+*.log
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
