@@ -1,16 +1,16 @@
-<script setup>
-defineProps({
-  text: {
-    type: String,
-    default: '',
+<script setup lang="ts">
+withDefaults(
+  defineProps<{
+    text?: string
+    type?: 'button' | 'submit' | 'reset'
+  }>(),
+  {
+    text: '',
+    type: 'button',
   },
-  type: {
-    type: String,
-    default: 'button',
-  },
-})
+)
 
-const emit = defineEmits(['onClick'])
+const emit = defineEmits<{ onClick: [event: MouseEvent] }>()
 </script>
 
 <template>

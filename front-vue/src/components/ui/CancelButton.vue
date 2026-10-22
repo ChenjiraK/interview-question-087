@@ -1,12 +1,7 @@
-<script setup>
-defineProps({
-  text: {
-    type: String,
-    default: 'Cancel',
-  },
-})
+<script setup lang="ts">
+withDefaults(defineProps<{ text?: string }>(), { text: 'Cancel' })
 
-const emit = defineEmits(['onClick'])
+const emit = defineEmits<{ onClick: [event: MouseEvent] }>()
 </script>
 
 <template>

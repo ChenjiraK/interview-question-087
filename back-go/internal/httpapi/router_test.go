@@ -11,7 +11,7 @@ import (
 
 func TestRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := NewRouter()
+	router := NewRouter(nil)
 
 	tests := []struct {
 		name   string

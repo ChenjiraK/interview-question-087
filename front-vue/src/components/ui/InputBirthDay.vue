@@ -1,6 +1,6 @@
-<script setup>
-const model = defineModel({ type: String, default: '' })
-const emit = defineEmits(['onChange'])
+<script setup lang="ts">
+const model = defineModel<string>({ default: '' })
+const emit = defineEmits<{ onChange: [value: string] }>()
 </script>
 
 <template>

@@ -4,16 +4,18 @@ const dateFormatter = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 })
 
-function parseBirthday(birthday) {
+function parseBirthday(birthday: string): Date {
   const [year, month, day] = birthday.split('-').map(Number)
   return new Date(year, month - 1, day)
 }
 
-export function formatBirthday(birthday) {
+export function formatBirthday(birthday?: string | null): string {
+  if (!birthday) return '-'
   return dateFormatter.format(parseBirthday(birthday))
 }
 
-export function calculateAge(birthday) {
+export function calculateAge(birthday?: string | null): number | null {
+  if (!birthday) return null
   const birth = parseBirthday(birthday)
   const today = new Date()
   const birthdayIsUpcoming =

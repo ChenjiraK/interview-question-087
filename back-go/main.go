@@ -10,9 +10,12 @@ import (
 	"syscall"
 	"time"
 
+	"back-go/internal/database"
 	"back-go/internal/httpapi"
+	"back-go/internal/repository"
+	"back-go/internal/service"
 
-	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -21,11 +24,25 @@ func main() {
 	}
 }
 
-func newRouter() *gin.Engine {
-	return httpapi.NewRouter()
-}
-
 func run() error {
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	db, err := database.Open(dbCtx)
+	dbCancel()
+	if err != nil {
+		return err
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	userRepository := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepository)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -33,7 +50,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newRouter(),
+		Handler:           httpapi.NewRouter(userService),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

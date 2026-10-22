@@ -1,13 +1,12 @@
-<script setup>
-const [model, modifiers] = defineModel({
-  type: String,
+<script setup lang="ts">
+const [model, modifiers] = defineModel<string, 'trim'>({
   default: '',
   set(value) {
     return modifiers.trim ? value.trim() : value
   },
 })
 
-const emit = defineEmits(['onChange'])
+const emit = defineEmits<{ onChange: [value: string] }>()
 </script>
 
 <template>

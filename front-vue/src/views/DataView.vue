@@ -1,40 +1,70 @@
-<script setup>
-import { ref } from 'vue'
-import ViewModal from '../components/modal/ViewModal.vue'
-import CreateModal from '../components/modal/CreateModal.vue'
-import { calculateAge, formatBirthday } from '../utils/person'
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { createUser, getUserById, getUsers } from '@/services/users'
+import { getApiErrorMessage } from '@/services/api'
+import type { Person, PersonForm } from '@/types/person'
+import { calculateAge, formatBirthday } from '@/utils/person'
+import ViewModal from '@/components/modal/user/ViewModal.vue'
+import CreateModal from '@/components/modal/user/CreateModal.vue'
 
-// Sample records. Replace with API data when a backend is available.
-const people = ref([
-  { id: 1, name: 'Anan Srisuk', address: '128 Sukhumvit Road, Bangkok', birthday: '1995-03-15' },
-  { id: 2, name: 'Siriporn Jaidee', address: '45 Nimman Road, Chiang Mai', birthday: '1998-11-22' },
-  { id: 3, name: 'Nattapong Saetang', address: '76 Phuket Road, Phuket', birthday: '1992-07-08' },
-  {
-    id: 4,
-    name: 'Pimchanok Wongchai',
-    address: '23 Mittraphap Road, Khon Kaen',
-    birthday: '2000-01-30',
-  },
-  {
-    id: 5,
-    name: 'Kittisak Boonmee',
-    address: '91 Pattaya Klang Road, Chon Buri',
-    birthday: '1988-10-21',
-  },
-])
+const people = ref<Person[]>([])
+const selectedPerson = ref<Person | null>(null)
+const createData = ref<Partial<PersonForm> | null>(null)
+const isLoading = ref(false)
+const isSaving = ref(false)
+const viewingId = ref<Person['id'] | null>(null)
+const listError = ref('')
+const detailError = ref('')
+const createError = ref('')
 
-const selectedPerson = ref(null)
-const createData = ref(null)
-
-function createPerson(person) {
-  const id = Math.max(0, ...people.value.map((record) => record.id)) + 1
-  people.value.push({ ...person, id })
-  createData.value = null
+async function loadPeople() {
+  isLoading.value = true
+  listError.value = ''
+  try {
+    people.value = await getUsers()
+  } catch (error) {
+    listError.value = getApiErrorMessage(error, 'โหลดรายชื่อไม่สำเร็จ กรุณาลองอีกครั้ง')
+  } finally {
+    isLoading.value = false
+  }
 }
 
-function viewPerson(person) {
-  selectedPerson.value = person
+function openCreate() {
+  createError.value = ''
+  createData.value = {}
 }
+
+async function createPerson(person: PersonForm) {
+  if (isSaving.value) return
+  isSaving.value = true
+  createError.value = ''
+  try {
+    const createdPerson = await createUser(person)
+    people.value.push(createdPerson)
+    createData.value = null
+    // Refresh so the table also includes records created by other clients.
+    await loadPeople()
+  } catch (error) {
+    createError.value = getApiErrorMessage(error, 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function viewPerson(person: Person) {
+  if (viewingId.value !== null) return
+  viewingId.value = person.id
+  detailError.value = ''
+  try {
+    selectedPerson.value = await getUserById(person.id)
+  } catch (error) {
+    detailError.value = getApiErrorMessage(error, 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองอีกครั้ง')
+  } finally {
+    viewingId.value = null
+  }
+}
+
+onMounted(loadPeople)
 </script>
 
 <template>
@@ -44,13 +74,21 @@ function viewPerson(person) {
         <button
           type="button"
           class="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500"
-          @click="createData = {}"
+          @click="openCreate"
         >
           ADD
         </button>
       </div>
+      <p v-if="detailError" role="alert" class="mb-4 text-sm text-red-600">{{ detailError }}</p>
+      <div v-if="listError" role="alert" class="mb-4 flex items-center gap-3 text-sm text-red-600">
+        <span>{{ listError }}</span>
+        <button type="button" class="underline" :disabled="isLoading" @click="loadPeople">
+          ลองอีกครั้ง
+        </button>
+      </div>
       <section
-        aria-labelledby="records-title"
+        aria-label="รายชื่อผู้ใช้"
+        :aria-busy="isLoading"
         class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
         <div class="overflow-x-auto">
@@ -68,6 +106,16 @@ function viewPerson(person) {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
+              <tr v-if="isLoading">
+                <td colspan="6" class="px-6 py-10 text-center text-slate-500" role="status">
+                  กำลังโหลดข้อมูล...
+                </td>
+              </tr>
+              <tr v-else-if="!people.length && !listError">
+                <td colspan="6" class="px-6 py-10 text-center text-slate-500">
+                  ยังไม่มีข้อมูลผู้ใช้
+                </td>
+              </tr>
               <tr
                 v-for="person in people"
                 :key="person.id"
@@ -82,12 +130,14 @@ function viewPerson(person) {
                   <time :datetime="person.birthday">{{ formatBirthday(person.birthday) }}</time>
                 </td>
                 <td class="px-6 py-5 text-slate-600 tabular-nums">
-                  {{ calculateAge(person.birthday) }}
+                  {{ calculateAge(person.birthday) ?? '-' }}
                 </td>
                 <td class="px-6 py-5 text-right">
                   <button
                     type="button"
                     class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold whitespace-nowrap text-white transition"
+                    :disabled="viewingId !== null"
+                    :aria-busy="viewingId === person.id"
                     @click="viewPerson(person)"
                   >
                     <svg
@@ -101,7 +151,8 @@ function viewPerson(person) {
                       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
-                    View data<span class="sr-only"> for {{ person.name }}</span>
+                    {{ viewingId === person.id ? 'กำลังโหลด...' : 'View data'
+                    }}<span class="sr-only"> for {{ person.name }}</span>
                   </button>
                 </td>
               </tr>
@@ -114,7 +165,13 @@ function viewPerson(person) {
         </footer>
       </section>
     </div>
-    <ViewModal mode="view" :data="selectedPerson" @close="selectedPerson = null" />
-    <CreateModal :data="createData" @save="createPerson" @close="createData = null" />
+    <ViewModal :data="selectedPerson" @close="selectedPerson = null" />
+    <CreateModal
+      :data="createData"
+      :saving="isSaving"
+      :error="createError"
+      @save="createPerson"
+      @close="createData = null"
+    />
   </main>
 </template>

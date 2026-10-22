@@ -3,11 +3,13 @@ package httpapi
 import (
 	"net/http"
 
+	"back-go/internal/handler"
+
 	"github.com/gin-gonic/gin"
 )
 
 // NewRouter configures the API routes and logging/recovery middleware.
-func NewRouter() *gin.Engine {
+func NewRouter(users handler.UserService) *gin.Engine {
 	router := gin.Default()
 	// Only trust the direct connection until a reverse proxy is configured.
 	if err := router.SetTrustedProxies(nil); err != nil {
@@ -24,6 +26,11 @@ func NewRouter() *gin.Engine {
 	router.GET("/ping", ping)
 	api := router.Group("/api/v1")
 	api.GET("/ping", ping)
+
+	userHandler := handler.NewUserHandler(users)
+	router.POST("/user", userHandler.Create)
+	router.GET("/user", userHandler.List)
+	router.GET("/user/:id", userHandler.GetByID)
 
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
