@@ -27,11 +27,11 @@ afterEach(() => {
   api.defaults.adapter = originalAdapter
 })
 
-test('GET /user maps records and preserves server pagination', async () => {
+test('GET /persons maps records and preserves server pagination', async () => {
   const pagination = { page: 1, limit: 10, total: 23, total_pages: 3 }
   respondWith({ data: [user], pagination }, (config) => {
     assert.equal(config.method, 'get')
-    assert.equal(config.url, '/user')
+    assert.equal(config.url, '/persons')
     assert.deepEqual(config.params, { page: 1, limit: 10 })
   })
   assert.deepEqual(await getUsers(), {
@@ -49,7 +49,7 @@ test('GET /user maps records and preserves server pagination', async () => {
   })
 })
 
-test('GET /user sends the requested page and limit', async () => {
+test('GET /persons sends the requested page and limit', async () => {
   const pagination = { page: 3, limit: 25, total: 51, total_pages: 3 }
   respondWith({ data: [user], pagination }, (config) => {
     assert.deepEqual(config.params, { page: 3, limit: 25 })
@@ -59,16 +59,16 @@ test('GET /user sends the requested page and limit', async () => {
   assert.equal(result.data.length, 1)
 })
 
-test('GET /user handles an empty paginated list', async () => {
+test('GET /persons handles an empty paginated list', async () => {
   const response = { data: [], pagination: { page: 1, limit: 10, total: 0, total_pages: 0 } }
   respondWith(response)
   assert.deepEqual(await getUsers(), response)
 })
 
-test('GET /user/:id fetches details and handles nullable fields', async () => {
+test('GET /person/:id fetches details and handles nullable fields', async () => {
   respondWith({ ...user, birthday: null, address: null }, (config) => {
     assert.equal(config.method, 'get')
-    assert.equal(config.url, '/user/42')
+    assert.equal(config.url, '/person/42')
   })
   const person = await getUserById(42)
   assert.equal(person.firstName, user.firstname)
@@ -77,10 +77,10 @@ test('GET /user/:id fetches details and handles nullable fields', async () => {
   assert.equal(person.address, '')
 })
 
-test('POST /user sends only supported fields and uses the server ID', async () => {
+test('POST /person sends only supported fields and uses the server ID', async () => {
   respondWith(user, (config) => {
     assert.equal(config.method, 'post')
-    assert.equal(config.url, '/user')
+    assert.equal(config.url, '/person')
     assert.deepEqual(JSON.parse(config.data), {
       firstname: 'สมชาย',
       lastname: 'ใจดี',
@@ -101,7 +101,7 @@ test('POST /user sends only supported fields and uses the server ID', async () =
   assert.equal(person.id, 42)
 })
 
-test('POST /user converts empty birthday and address to null for the API', async () => {
+test('POST /person converts empty birthday and address to null for the API', async () => {
   respondWith(user, (config) => {
     assert.deepEqual(JSON.parse(config.data), {
       firstname: 'สมชาย',

@@ -146,7 +146,7 @@ onMounted(() => loadPeople())
                 <td class="px-6 py-5 text-right">
                   <button
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold whitespace-nowrap text-white transition"
+                    class="relative inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-semibold whitespace-nowrap text-white transition"
                     :disabled="viewingId !== null"
                     :aria-busy="viewingId === person.id"
                     @click="viewPerson(person)"
