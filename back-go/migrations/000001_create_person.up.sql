@@ -1,4 +1,4 @@
-CREATE TABLE public."user" (
+CREATE TABLE public."person" (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     firstname TEXT NOT NULL,
     lastname TEXT NOT NULL,

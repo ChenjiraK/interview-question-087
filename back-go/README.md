@@ -203,4 +203,22 @@ make build   # สร้าง executable ที่ bin/server
 ./bin/server
 ```
 
+### Unit tests
+
+มี unit test แยกในแต่ละ layer โดยไม่ต้องเปิด PostgreSQL:
+
+| Package | สิ่งที่ทดสอบ |
+| --- | --- |
+| `internal/handler` | ใช้ mock service ตรวจ JSON, query/ID, status และ response, Location header, timeout และการแปลง error |
+| `internal/service` | ใช้ mock repository ตรวจ validation, การตัดช่องว่างชื่อ, วันเกิด, pagination/overflow, การแปลง response และส่งต่อ error/context |
+| `internal/repository` | ใช้ `go-sqlmock` กับ GORM PostgreSQL ตรวจ SQL/arguments, transaction/rollback, NULL, ค่าที่ฐานข้อมูลสร้าง, pagination และ error |
+| `internal/model` | ตรวจ GORM schema: ชื่อตาราง/คอลัมน์, primary key, ชนิดวันที่ และ timestamps ที่สร้างโดยฐานข้อมูล |
+
+```bash
+go test ./...                         # รันเทสต์ทั้งหมด
+go test ./internal/service -v         # รันเฉพาะ service พร้อมแสดงแต่ละกรณี
+go test ./internal/handler ./internal/service ./internal/repository ./internal/model -cover
+go test -race ./...                   # ตรวจ data race
+```
+
 ทดสอบกับ PostgreSQL จริงได้โดยกำหนด `TEST_DATABASE_URL` ไปยังฐานข้อมูลทดสอบแยกที่รัน migration แล้วและตาราง person ว่าง จากนั้นรัน `go test ./internal/httpapi -run TestPersonsPostgres -v` หากไม่กำหนดตัวแปรนี้ integration test จะถูกข้าม โดย unit tests ปกติไม่ต้องเชื่อมฐานข้อมูล
