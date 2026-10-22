@@ -8,6 +8,7 @@
 
 - Go 1.25 ขึ้นไป
 - Docker พร้อม Docker Compose v2 ขึ้นไป สำหรับ PostgreSQL และ migrations
+- `make` สำหรับเรียกคำสั่งใน Makefile
 
 ## เริ่มใช้งาน
 
@@ -31,31 +32,67 @@ PORT=3000 GIN_MODE=release go run .
 
 ## PostgreSQL และ migrations
 
-ใช้ PostgreSQL 18 ผ่าน Docker Compose และ [golang-migrate](https://github.com/golang-migrate/migrate) ผ่าน container จึงไม่ต้องติดตั้ง migration CLI บนเครื่อง
+ใช้ PostgreSQL 18 ผ่าน Docker Compose และรัน migration ด้วย golang-migrate ผ่าน container จึงไม่ต้องติดตั้ง PostgreSQL หรือ migration CLI บนเครื่อง
+
+### 1. เตรียมค่าฐานข้อมูล
+
+เปิด Docker ให้พร้อมใช้งาน จากโฟลเดอร์หลักของโปรเจกต์เข้าโฟลเดอร์ Backend:
 
 ```bash
-make migrate-up
+cd back-go
 ```
 
-คำสั่งนี้จะสร้าง `.env` จาก `.env.example` ถ้ายังไม่มี เปิดฐานข้อมูล รอให้พร้อม แล้วรัน migration ที่ยังไม่เคยรัน การเรียกซ้ำจะไม่สร้างตารางซ้ำ
+คำสั่งที่เหลือในหัวข้อนี้ให้รันจาก `back-go` ทั้งหมด หากยังไม่มี `.env` ให้คัดลอกไฟล์ตัวอย่าง แล้วแก้ค่าตามต้องการ:
+
+```bash
+cp .env.example .env
+```
+
+หากมี `.env` อยู่แล้ว ให้แก้ไฟล์เดิมโดยไม่ต้องคัดลอกทับ คำสั่ง `make db-up` และ `make migrate-up` จะสร้างไฟล์นี้ให้โดยอัตโนมัติถ้ายังไม่มี
 
 ค่าเริ่มต้นสำหรับพัฒนาในเครื่อง:
 
-| ค่า | ค่าเริ่มต้น |
+| ตัวแปร | ค่าเริ่มต้น |
 | --- | --- |
-| Host | `localhost` |
-| Port | `5432` |
-| Database | `interview-question-087` |
-| Username | `user` |
-| Password | `password` |
+| `POSTGRES_HOST` | `127.0.0.1` |
+| `POSTGRES_PORT` | `5432` |
+| `POSTGRES_DB` | `interview-question-087` |
+| `POSTGRES_USER` | `user` |
+| `POSTGRES_PASSWORD` | `password` |
+| `POSTGRES_SSLMODE` | `disable` |
 
-หากต้องการแก้ค่าก่อนเริ่มครั้งแรก ให้รัน `cp .env.example .env` แล้วแก้ไฟล์ `.env` ซึ่งจะไม่ถูกเก็บใน Git หากพอร์ต 5432 ถูกใช้อยู่ ให้เปลี่ยน `POSTGRES_PORT` เช่น `5433`
+ไฟล์ `.env` ไม่ถูกเก็บใน Git หากพอร์ต `5432` ถูกใช้อยู่ ให้เปลี่ยน `POSTGRES_PORT` เช่น `5433` ก่อนเปิดฐานข้อมูล
 
-ข้อมูลถูกเก็บใน Docker volume `postgres_data` จึงยังอยู่หลัง `make db-down` และเปิดใหม่ ตัวแปร `POSTGRES_DB`, `POSTGRES_USER` และ `POSTGRES_PASSWORD` ใช้สร้างฐานข้อมูลตอน volume ว่างครั้งแรก การแก้ `.env` ภายหลังจะไม่เปลี่ยนชื่อฐานข้อมูลหรือบัญชีใน volume เดิม
+### 2. เปิด Database server
 
-Migration `000001_create_user` สร้างตารางเดิม `public."user"` จากนั้น `000002_rename_user_to_person` เปลี่ยนชื่อเป็น `public.person` โดยเก็บข้อมูล คอลัมน์ และ ID เดิมไว้:
+```bash
+make db-up
+docker compose ps db
+```
 
-สำหรับฐานข้อมูลที่มีอยู่แล้ว ให้รัน `make migrate-up` เพื่ออัปเกรดเป็น v2 แล้วรีสตาร์ต backend เพื่อโหลด routes และ model ชุดใหม่
+`make db-up` เรียก `docker compose up -d --wait db` เพื่อเปิด PostgreSQL เบื้องหลังและรอ healthcheck ผ่าน เมื่อพร้อมใช้งาน `docker compose ps db` จะแสดงสถานะ `healthy` โดยขั้นตอนนี้ยังไม่ได้สร้างตารางของแอป ต้องรัน migration ในขั้นตอนถัดไป
+
+ดู log ของฐานข้อมูลได้ด้วย:
+
+```bash
+docker compose logs --tail=100 db
+docker compose logs -f db
+```
+
+กด `Ctrl+C` เพื่อหยุดดู log ฐานข้อมูลยังทำงานต่อ
+
+หากเชื่อมต่อผ่านโปรแกรมจัดการฐานข้อมูล เช่น DBeaver หรือ pgAdmin ให้ใช้ Host `127.0.0.1`, Port ตาม `POSTGRES_PORT` และ Database, Username, Password ตาม `.env` ฐานข้อมูลเปิดพอร์ตเฉพาะบนเครื่องนี้
+
+### 3. Run migration
+
+```bash
+make migrate-up
+make migrate-version
+```
+
+`make migrate-up` เปิดฐานข้อมูลและรอให้พร้อมก่อนเรียก `docker compose run --rm migrate up` เพื่อรัน migration ที่ยังไม่เคยรัน จึงสามารถใช้คำสั่งนี้เพียงคำสั่งเดียวเพื่อเตรียมทั้งฐานข้อมูลและตารางได้ การเรียกซ้ำเมื่อฐานข้อมูลเป็นเวอร์ชันล่าสุดแล้วอาจแสดง `no change` ซึ่งหมายถึงไม่มี migration ใหม่ให้รัน
+
+ไฟล์ปัจจุบันคือ `migrations/000001_create_person.up.sql` สร้างตาราง `public.person` หลังรันสำเร็จ `make migrate-version` จะแสดงเวอร์ชัน `1` โครงสร้างตารางมีดังนี้:
 
 | Column | Type | เงื่อนไข |
 | --- | --- | --- |
@@ -67,13 +104,23 @@ Migration `000001_create_user` สร้างตารางเดิม `publi
 | `created_at` | `TIMESTAMPTZ` | ห้ามเป็น NULL และกำหนดเวลาสร้างให้อัตโนมัติ |
 | `updated_at` | `TIMESTAMPTZ` | ห้ามเป็น NULL และกำหนดค่าเริ่มต้นเป็นเวลาปัจจุบัน |
 
-ทั้งสองคอลัมน์ใช้ค่าเริ่มต้น `CURRENT_TIMESTAMP` เมื่อเพิ่มแถวใหม่ ส่วน migration v1 ปัจจุบันไม่ได้สร้าง trigger สำหรับเปลี่ยน `updated_at` จึงต้องกำหนดค่าใหม่ในคำสั่ง UPDATE เช่น `SET updated_at = CURRENT_TIMESTAMP`
+ทั้งสองคอลัมน์เวลาใช้ค่าเริ่มต้น `CURRENT_TIMESTAMP` เมื่อเพิ่มแถวใหม่ ส่วน migration v1 ปัจจุบันไม่ได้สร้าง trigger สำหรับเปลี่ยน `updated_at` จึงต้องกำหนดค่าใหม่ในคำสั่ง UPDATE เช่น `SET updated_at = CURRENT_TIMESTAMP`
 
-เปิด SQL shell และทดลองเพิ่มข้อมูลในตาราง `person` ได้ดังนี้:
+### 4. ตรวจสอบตารางและเชื่อมต่อผ่าน SQL shell
 
 ```bash
 make db-shell
 ```
+
+เมื่อเข้าสู่ `psql` ให้ตรวจสอบตารางและข้อมูล:
+
+```sql
+\dt public.*
+\d public.person
+SELECT * FROM public.person;
+```
+
+หากต้องการทดลองเพิ่มข้อมูลด้วยตนเอง:
 
 ```sql
 INSERT INTO public.person (firstname, lastname, birthday, address)
@@ -83,18 +130,61 @@ RETURNING *;
 SELECT * FROM public.person;
 ```
 
-คำสั่งอื่น:
+พิมพ์ `\q` เพื่อออกจาก `psql`
+
+### 5. เปิด Backend หลัง migration สำเร็จ
 
 ```bash
-make db-up            # เปิด PostgreSQL และรอให้พร้อม
-make migrate-version  # ดูเวอร์ชัน migration ปัจจุบัน
-make migrate-down     # ย้อนกลับ 1 migration: v2 เปลี่ยนชื่อ person กลับเป็น user โดยเก็บข้อมูล
-make db-down          # หยุด containers โดยเก็บ volume ไว้
+go mod download
+make run
 ```
 
-เพิ่ม migration ถัดไปเป็นคู่ไฟล์ เช่น `migrations/000003_add_email.up.sql` และ `migrations/000003_add_email.down.sql` แล้วรัน `make migrate-up` โดยไม่แก้ migration ที่รันไปแล้ว
+Backend เปิดที่ `http://localhost:8080` ตรวจสอบจากอีก Terminal ด้วย `curl http://localhost:8080/health` และหยุด API ด้วย `Ctrl+C`
 
 Go API ใช้ GORM กับตาราง `public.person` สำหรับสร้างบุคคลและอ่านข้อมูล โดยรัน SQL migrations ให้เรียบร้อยก่อนเปิดเซิร์ฟเวอร์ โครงสร้างฐานข้อมูลยังจัดการผ่านไฟล์ migration เดิม แอปไม่เรียก `AutoMigrate`
+
+### หยุดและเปิดฐานข้อมูลอีกครั้ง
+
+```bash
+make db-down
+```
+
+คำสั่งนี้หยุดและลบ containers โดยเก็บข้อมูลใน Docker volume `postgres_data` ไว้ เมื่อต้องการใช้งานอีกครั้งให้รัน `make migrate-up` แล้ว `make run`
+
+ตัวแปร `POSTGRES_DB`, `POSTGRES_USER` และ `POSTGRES_PASSWORD` ใช้สร้างฐานข้อมูลตอน volume ว่างครั้งแรก การแก้ `.env` ภายหลังจะไม่เปลี่ยนชื่อฐานข้อมูลหรือบัญชีใน volume เดิม
+
+### Rollback migration
+
+หยุด Backend และสำรองข้อมูลที่ต้องการเก็บก่อน จากนั้นย้อนกลับทีละหนึ่ง migration ด้วย:
+
+```bash
+make migrate-down
+```
+
+**สำหรับเวอร์ชันปัจจุบัน คำสั่งนี้รัน `000001_create_person.down.sql` ซึ่งลบตาราง `public.person` และข้อมูลทั้งหมดในตาราง** หากรัน `make migrate-up` อีกครั้งจะสร้างตารางเปล่าขึ้นใหม่ ไม่ได้กู้ข้อมูลเดิม
+
+### เพิ่ม migration ใหม่
+
+สร้างไฟล์คู่ `.up.sql` สำหรับเปลี่ยนโครงสร้าง และ `.down.sql` สำหรับย้อนกลับ โดยใช้เลขเวอร์ชันถัดไป เช่น `migrations/000002_add_email.up.sql` และ `migrations/000002_add_email.down.sql` แล้วรัน:
+
+```bash
+make migrate-up
+make migrate-version
+```
+
+ไม่แก้ไฟล์ migration ที่รันไปแล้ว ให้เพิ่ม migration ใหม่สำหรับการเปลี่ยนแปลงถัดไป
+
+### แก้ปัญหาเบื้องต้น
+
+| อาการ | วิธีตรวจสอบหรือแก้ไข |
+| --- | --- |
+| ติดต่อ Docker ไม่ได้ | เปิด Docker แล้วตรวจสอบด้วย `docker info` |
+| พอร์ต `5432` ถูกใช้งาน | เปลี่ยน `POSTGRES_PORT` ใน `.env` แล้วรัน `make db-up` ใหม่ |
+| ฐานข้อมูลไม่ผ่าน healthcheck | ดูรายละเอียดด้วย `docker compose logs --tail=100 db` |
+| Backend แจ้ง `connection refused` | รัน `make db-up` และตรวจ host/port ที่ Backend ใช้ โดย `DATABASE_URL` มีลำดับความสำคัญเหนือ `POSTGRES_*` |
+| ไม่พบตาราง `person` | รัน `make migrate-up` และตรวจว่า Backend เชื่อมฐานข้อมูลเดียวกับ Compose |
+| ยืนยันตัวตนไม่ได้หลังแก้ `.env` | ตรวจข้อมูลบัญชีที่สร้างไว้ใน volume เดิม การแก้ `.env` ไม่เปลี่ยนบัญชี PostgreSQL ที่มีอยู่แล้ว |
+| Migration แจ้ง `dirty database version` | ตรวจ log และ schema หลัง migration ล้มเหลว แล้วแก้สาเหตุก่อน retry หลีกเลี่ยงการบังคับเวอร์ชันโดยยังไม่ได้ตรวจสถานะจริง |
 
 ## Endpoints
 
@@ -167,10 +257,8 @@ back-go/
 ├── compose.yaml                  # PostgreSQL และ migration runner
 ├── .env.example                  # ตัวอย่างค่าฐานข้อมูลสำหรับพัฒนา
 ├── migrations/
-│   ├── 000001_create_user.up.sql
-│   ├── 000001_create_user.down.sql
-│   ├── 000002_rename_user_to_person.up.sql
-│   └── 000002_rename_user_to_person.down.sql
+│   ├── 000001_create_person.up.sql
+│   └── 000001_create_person.down.sql
 ├── internal/
 │   ├── database/postgres.go      # เปิด GORM และตั้งค่า connection pool
 │   ├── handler/person.go           # HTTP request/response
