@@ -30,6 +30,12 @@ go run .
 PORT=3000 GIN_MODE=release go run .
 ```
 
+## CORS
+
+Backend อนุญาต cross-origin requests จาก `https://interview-question-087.onrender.com` (Origin ไม่มี `/` ท้าย URL) รองรับ `GET`, `POST` และ preflight `OPTIONS` พร้อม headers `Content-Type` และ `Authorization` และเปิดให้ frontend อ่าน response header `Location` ได้
+
+Requests ที่ไม่มี `Origin` เช่น curl หรือ server-to-server ยังใช้งานได้ตามปกติ ส่วน origin อื่นจะได้รับ `403` หากเปลี่ยนโดเมน frontend ให้แก้ `allowedOrigin` ใน `internal/httpapi/cors.go` แล้ว deploy backend ใหม่
+
 ## PostgreSQL และ migrations
 
 ใช้ PostgreSQL 18 ผ่าน Docker Compose และรัน migration ด้วย golang-migrate ผ่าน container จึงไม่ต้องติดตั้ง PostgreSQL หรือ migration CLI บนเครื่อง

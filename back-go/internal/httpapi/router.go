@@ -11,6 +11,7 @@ import (
 // NewRouter configures the API routes and logging/recovery middleware.
 func NewRouter(persons handler.PersonService) *gin.Engine {
 	router := gin.Default()
+	router.Use(cors())
 	// Only trust the direct connection until a reverse proxy is configured.
 	if err := router.SetTrustedProxies(nil); err != nil {
 		panic(err)
