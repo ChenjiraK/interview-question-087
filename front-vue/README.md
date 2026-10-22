@@ -15,7 +15,9 @@ requests from `/api` to this backend, so development does not require backend CO
 configuration. Change `VITE_API_PROXY_TARGET` in `.env.local` if the backend runs
 on a different host or port, then restart Vite.
 
-- Opening the page calls `GET /user` to load the table.
+- Opening the page calls `GET /user?page=1&limit=10` to load the table. Previous/next
+  buttons request the corresponding page and use the response's `pagination`
+  metadata for the total count and page boundaries.
 - Saving the add form calls `POST /user`, then refreshes the table.
 - Clicking **View data** calls `GET /user/:id` before opening the details dialog.
 

@@ -27,26 +27,42 @@ afterEach(() => {
   api.defaults.adapter = originalAdapter
 })
 
-test('GET /user maps backend fields to table and form fields', async () => {
-  respondWith([user], (config) => {
+test('GET /user maps records and preserves server pagination', async () => {
+  const pagination = { page: 1, limit: 10, total: 23, total_pages: 3 }
+  respondWith({ data: [user], pagination }, (config) => {
     assert.equal(config.method, 'get')
     assert.equal(config.url, '/user')
+    assert.deepEqual(config.params, { page: 1, limit: 10 })
   })
-  assert.deepEqual(await getUsers(), [
-    {
-      id: 42,
-      firstName: 'สมชาย',
-      lastName: 'ใจดี',
-      name: 'สมชาย ใจดี',
-      birthday: '1995-01-15',
-      address: 'กรุงเทพมหานคร',
-    },
-  ])
+  assert.deepEqual(await getUsers(), {
+    data: [
+      {
+        id: 42,
+        firstName: 'สมชาย',
+        lastName: 'ใจดี',
+        name: 'สมชาย ใจดี',
+        birthday: '1995-01-15',
+        address: 'กรุงเทพมหานคร',
+      },
+    ],
+    pagination,
+  })
 })
 
-test('GET /user handles an empty list', async () => {
-  respondWith([])
-  assert.deepEqual(await getUsers(), [])
+test('GET /user sends the requested page and limit', async () => {
+  const pagination = { page: 3, limit: 25, total: 51, total_pages: 3 }
+  respondWith({ data: [user], pagination }, (config) => {
+    assert.deepEqual(config.params, { page: 3, limit: 25 })
+  })
+  const result = await getUsers(3, 25)
+  assert.deepEqual(result.pagination, pagination)
+  assert.equal(result.data.length, 1)
+})
+
+test('GET /user handles an empty paginated list', async () => {
+  const response = { data: [], pagination: { page: 1, limit: 10, total: 0, total_pages: 0 } }
+  respondWith(response)
+  assert.deepEqual(await getUsers(), response)
 })
 
 test('GET /user/:id fetches details and handles nullable fields', async () => {

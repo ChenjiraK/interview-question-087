@@ -40,8 +40,8 @@ func run() error {
 	}
 	defer sqlDB.Close()
 
-	userRepository := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepository)
+	personRepository := repository.NewPersonRepository(db)
+	personService := service.NewPersonService(personRepository)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -50,7 +50,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpapi.NewRouter(userService),
+		Handler:           httpapi.NewRouter(personService),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

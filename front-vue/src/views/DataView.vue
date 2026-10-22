@@ -2,12 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { createUser, getUserById, getUsers } from '@/services/users'
 import { getApiErrorMessage } from '@/services/api'
-import type { Person, PersonForm } from '@/types/person'
+import type { Pagination as PaginationMetadata, Person, PersonForm } from '@/types/person'
 import { calculateAge, formatBirthday } from '@/utils/person'
+import Pagination from '@/components/ui/Pagination.vue'
 import ViewModal from '@/components/modal/user/ViewModal.vue'
 import CreateModal from '@/components/modal/user/CreateModal.vue'
 
 const people = ref<Person[]>([])
+const pagination = ref<PaginationMetadata>({ page: 1, limit: 10, total: 0, total_pages: 0 })
 const selectedPerson = ref<Person | null>(null)
 const createData = ref<Partial<PersonForm> | null>(null)
 const isLoading = ref(false)
@@ -17,11 +19,19 @@ const listError = ref('')
 const detailError = ref('')
 const createError = ref('')
 
-async function loadPeople() {
+async function loadPeople(page = pagination.value.page) {
+  if (isLoading.value) return
   isLoading.value = true
   listError.value = ''
   try {
-    people.value = await getUsers()
+    let result = await getUsers(page, pagination.value.limit)
+    // The requested page may disappear if records were removed by another client.
+    const lastPage = Math.max(1, result.pagination.total_pages)
+    if (result.pagination.page > lastPage) {
+      result = await getUsers(lastPage, result.pagination.limit)
+    }
+    people.value = result.data
+    pagination.value = result.pagination
   } catch (error) {
     listError.value = getApiErrorMessage(error, 'โหลดรายชื่อไม่สำเร็จ กรุณาลองอีกครั้ง')
   } finally {
@@ -39,8 +49,7 @@ async function createPerson(person: PersonForm) {
   isSaving.value = true
   createError.value = ''
   try {
-    const createdPerson = await createUser(person)
-    people.value.push(createdPerson)
+    await createUser(person)
     createData.value = null
     // Refresh so the table also includes records created by other clients.
     await loadPeople()
@@ -64,7 +73,7 @@ async function viewPerson(person: Person) {
   }
 }
 
-onMounted(loadPeople)
+onMounted(() => loadPeople())
 </script>
 
 <template>
@@ -73,6 +82,7 @@ onMounted(loadPeople)
       <div class="mb-4 flex justify-end">
         <button
           type="button"
+          :disabled="isLoading || isSaving"
           class="rounded-lg bg-green-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500"
           @click="openCreate"
         >
@@ -82,7 +92,7 @@ onMounted(loadPeople)
       <p v-if="detailError" role="alert" class="mb-4 text-sm text-red-600">{{ detailError }}</p>
       <div v-if="listError" role="alert" class="mb-4 flex items-center gap-3 text-sm text-red-600">
         <span>{{ listError }}</span>
-        <button type="button" class="underline" :disabled="isLoading" @click="loadPeople">
+        <button type="button" class="underline" :disabled="isLoading" @click="loadPeople()">
           ลองอีกครั้ง
         </button>
       </div>
@@ -118,6 +128,7 @@ onMounted(loadPeople)
               </tr>
               <tr
                 v-for="person in people"
+                v-show="!isLoading"
                 :key="person.id"
                 class="transition-colors hover:bg-slate-50/80"
               >
@@ -160,8 +171,12 @@ onMounted(loadPeople)
           </table>
         </div>
 
-        <footer class="border-t border-slate-200 px-6 py-4 text-xs text-slate-500">
-          Showing {{ people.length }} records
+        <footer>
+          <Pagination
+            :pagination="pagination"
+            :disabled="isLoading || isSaving"
+            @page-change="loadPeople"
+          />
         </footer>
       </section>
     </div>

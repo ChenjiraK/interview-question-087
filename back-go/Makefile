@@ -30,7 +30,7 @@ db-shell: db-up
 migrate-up: db-up
 	docker compose run --rm migrate up
 
-# Roll back one migration. This drops the user table and its data for version 1.
+# Roll back one migration: v2 renames person to user; v1 drops the table and data.
 migrate-down: db-up
 	docker compose run --rm migrate down 1
 

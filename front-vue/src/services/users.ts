@@ -1,7 +1,7 @@
 import { api } from './api.ts'
-import type { PersonForm, Person, UserResponse } from '../types/person.ts'
+import type { PersonForm, Person, PersonResponse, PaginatedResponse } from '../types/person.ts'
 
-function toPerson(user: UserResponse): Person {
+function toPerson(user: PersonResponse): Person {
   return {
     id: user.id,
     firstName: user.firstname,
@@ -12,18 +12,20 @@ function toPerson(user: UserResponse): Person {
   }
 }
 
-export async function getUsers(): Promise<Person[]> {
-  const { data } = await api.get<UserResponse[]>('/user')
-  return data.map(toPerson)
+export async function getUsers(page = 1, limit = 10): Promise<PaginatedResponse<Person>> {
+  const { data } = await api.get<PaginatedResponse<PersonResponse>>('/person', {
+    params: { page, limit },
+  })
+  return { data: data.data.map(toPerson), pagination: data.pagination }
 }
 
 export async function getUserById(id: Person['id']): Promise<Person> {
-  const { data } = await api.get<UserResponse>(`/user/${encodeURIComponent(id)}`)
+  const { data } = await api.get<PersonResponse>(`/person/${encodeURIComponent(id)}`)
   return toPerson(data)
 }
 
 export async function createUser(person: PersonForm): Promise<Person> {
-  const { data } = await api.post<UserResponse>('/user', {
+  const { data } = await api.post<PersonResponse>('/persons', {
     firstname: person.firstName.trim(),
     lastname: person.lastName.trim(),
     birthday: person.birthday || null,

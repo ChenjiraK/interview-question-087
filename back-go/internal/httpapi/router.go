@@ -9,7 +9,7 @@ import (
 )
 
 // NewRouter configures the API routes and logging/recovery middleware.
-func NewRouter(users handler.UserService) *gin.Engine {
+func NewRouter(persons handler.PersonService) *gin.Engine {
 	router := gin.Default()
 	// Only trust the direct connection until a reverse proxy is configured.
 	if err := router.SetTrustedProxies(nil); err != nil {
@@ -27,10 +27,10 @@ func NewRouter(users handler.UserService) *gin.Engine {
 	api := router.Group("/api/v1")
 	api.GET("/ping", ping)
 
-	userHandler := handler.NewUserHandler(users)
-	router.POST("/user", userHandler.Create)
-	router.GET("/user", userHandler.List)
-	router.GET("/user/:id", userHandler.GetByID)
+	personHandler := handler.NewPersonHandler(persons)
+	router.POST("/person", personHandler.Create)
+	router.GET("/persons", personHandler.List)
+	router.GET("/person/:id", personHandler.GetByID)
 
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
