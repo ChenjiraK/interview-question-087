@@ -13,7 +13,7 @@ function toPerson(user: PersonResponse): Person {
 }
 
 export async function getUsers(page = 1, limit = 10): Promise<PaginatedResponse<Person>> {
-  const { data } = await api.get<PaginatedResponse<PersonResponse>>('/person', {
+  const { data } = await api.get<PaginatedResponse<PersonResponse>>('/persons', {
     params: { page, limit },
   })
   return { data: data.data.map(toPerson), pagination: data.pagination }
@@ -25,7 +25,7 @@ export async function getUserById(id: Person['id']): Promise<Person> {
 }
 
 export async function createUser(person: PersonForm): Promise<Person> {
-  const { data } = await api.post<PersonResponse>('/persons', {
+  const { data } = await api.post<PersonResponse>('/person', {
     firstname: person.firstName.trim(),
     lastname: person.lastName.trim(),
     birthday: person.birthday || null,
