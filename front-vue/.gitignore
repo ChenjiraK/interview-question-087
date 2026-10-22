@@ -1,0 +1,5 @@
+# Playwright reports and browser artifacts
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
